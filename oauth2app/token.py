@@ -402,13 +402,14 @@ class TokenGenerator(object):
 
     def _get_client_credentials_token(self):
         """Generate an access token after client_credentials authorization."""
-        access_token = AccessToken.objects.create(
+        self.access_token = AccessToken.objects.create(
             user=self.client.user,
             client=self.client,
             refreshable=self.refreshable)
         if self.authentication_method == MAC:
             access_token.mac_key = KeyGenerator(MAC_KEY_LENGTH)()
         access_ranges = list(AccessRange.objects.filter(key__in=self.scope))
+        self.access_token.save()
         self.access_token.scope = access_ranges
         self.access_token.save()
         return self.access_token
