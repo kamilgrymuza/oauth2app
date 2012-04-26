@@ -153,11 +153,10 @@ class TokenGenerator(object):
         # Optional json callback
         self.callback = request.REQUEST.get('callback')
         self.request = request
-        try:
-            self.validate()
-        except AccessTokenException, e:
-            return self.error_response()
+        
+        self.validate()
         return self.grant_response()
+
 
     def validate(self):
         """Validate the request. Raises an AccessTokenException if the
@@ -196,6 +195,12 @@ class TokenGenerator(object):
             if len(difference) != 0:
                 raise InvalidScope("Following access ranges doesn't exist: "
                     "%s" % ', '.join(difference))
+            if self.authorized_scope is not None:
+                new_scope = self.scope - self.authorized_scope
+                if len(new_scope) > 0:
+                    raise InvalidScope(
+                        "Invalid scope request: %s" % ', '.join(new_scope))
+                
         if self.grant_type == "authorization_code":
             self._validate_authorization_code()
         elif self.grant_type == "refresh_token":
@@ -402,17 +407,16 @@ class TokenGenerator(object):
 
     def _get_client_credentials_token(self):
         """Generate an access token after client_credentials authorization."""
-        self.access_token = AccessToken.objects.create(
+        access_token = AccessToken.objects.create(
             user=self.client.user,
             client=self.client,
             refreshable=self.refreshable)
         if self.authentication_method == MAC:
             access_token.mac_key = KeyGenerator(MAC_KEY_LENGTH)()
         access_ranges = list(AccessRange.objects.filter(key__in=self.scope))
-        self.access_token.save()
-        self.access_token.scope = access_ranges
-        self.access_token.save()
-        return self.access_token
+        access_token.scope = access_ranges
+        access_token.save()
+        return access_token
 
 
 
